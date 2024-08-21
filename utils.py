@@ -691,7 +691,7 @@ ml_tool=MovieLensTool('~/Data/ml-1m')
 douban_tool=DoubanTool('~/Data/douban')
 taobao_tool=TaobaoTool('~/Data/taobao2014')
 
-def get_loader(name='ml-1m',batch_size=512):
+def get_loader(name='ml-1m',batch_size=512,seed=42):
     # Load data
     if name in ['ml-1m','douban']:
         tool_map={'ml-1m':ml_tool,'douban':douban_tool}
@@ -705,8 +705,9 @@ def get_loader(name='ml-1m',batch_size=512):
         
         train=assigned_tool.get_ctr_data()
 
-        train, val_and_test = train_test_split(train, test_size=0.2, random_state=42)
-        val, test = train_test_split(val_and_test, test_size=0.5, random_state=42)
+        train, val_and_test = train_test_split(train, test_size=0.2, random_state=seed)
+        val, test = train_test_split(val_and_test, test_size=0.5, random_state=seed)
+        #val, test = val_and_test, val_and_test
         
         #对train shuffle
         train=train.sample(frac=1)

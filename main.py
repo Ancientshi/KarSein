@@ -35,6 +35,8 @@ def parse_args():
     parser.add_argument('--task', type=str, default='TopK', choices=['CTR'], help='Task Type (CTR)')
     parser.add_argument('--epochs', type=int, default=5, help='Number of Epochs')
     parser.add_argument('--batch_size', type=int, default=512, help='Batch Size for Training, 10*batch_size for Evaluation')
+    #reg 0.01
+    parser.add_argument('--reg', type=float, default=0.01, help='Regularization Rate')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight Decay Rate')
     parser.add_argument('--gamma', type=float, default=0.9, help='Gamma Value for Optimizer')
@@ -101,7 +103,7 @@ if args.task=='CTR':
 else:
     sys.exit('Only CTR task is supported')
 
-train_loader, val_loader, test_loader, feature_dict,vocab_size_dict = get_loader(name=args.dataset,batch_size=args.batch_size)
+train_loader, val_loader, test_loader, feature_dict,vocab_size_dict = get_loader(name=args.dataset,batch_size=args.batch_size,seed=args.seed)
 print(f'Train Size: {len(train_loader.dataset)}, Val Size: {len(val_loader.dataset)}, CTR Test Size: {len(test_loader.dataset)}')
 
 model=None
@@ -123,7 +125,7 @@ def train(model=None):
                 labels = labels.cuda(device_index)
                 outputs = model(inputs)
                 optimizer.zero_grad() 
-                loss = criterion(outputs.squeeze(), labels) + 0.01*model.regularization_loss()
+                loss = criterion(outputs.squeeze(), labels) + args.reg*model.regularization_loss()
                 train_loss += loss.item()
                 loss.backward()
                 optimizer.step()

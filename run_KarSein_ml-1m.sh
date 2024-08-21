@@ -9,16 +9,19 @@ BATCH_SIZE=512
 BitWIDTH='64 32'
 VecWIDTH='6 6'
 GRID=10
-K=3
+K=2
 LR=0.003
-Pairwise_Multiplication='0 1'
-
+Pairwise_Multiplication='0 1 2'
+EMB_DIM=16
+REG=0.01
 
 for TASK in ${TASK_LIST[@]}
 do
     python main.py \
         --seed $SEED \
         --lr $LR \
+        --reg $REG \
+        --emb_dim $EMB_DIM \
         --epochs $EPOCHS \
         --netname $NETNAME \
         --bit_width $BitWIDTH \
