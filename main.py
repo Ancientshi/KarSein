@@ -161,7 +161,6 @@ best_model = train()
 # Evaluate best model
 best_model.eval()
 auc_value_sum=0
-logloss_value_sum=0
 recall_eva_df=pd.DataFrame(columns=['user_id','movie_id','rating','prediction'],index=None)
 with torch.no_grad():
     if args.task=='CTR':
@@ -170,21 +169,17 @@ with torch.no_grad():
             labels = labels.cuda(device_index)
             outputs = best_model(inputs)
             auc_value=auc(labels.detach().cpu().numpy(),outputs.detach().cpu().numpy())
-            logloss_value=criterion(outputs.squeeze(), labels).item()
-            auc_value_sum+=auc_value
-            logloss_value_sum+=logloss_value
+
       
     mean_auc_value = auc_value_sum / len(test_loader)
-    mean_logloss_value = logloss_value_sum / len(test_loader)
 
     AUC_value_str=f'{mean_auc_value:.4f}'
-    LogLoss_value_str=f'{mean_logloss_value:.4f}'
-    print(f"Best Model, AUC: {AUC_value_str}, LogLoss: {LogLoss_value_str}")
+    print(f"Best Model, AUC: {AUC_value_str}")
     
 csv_file_path='results/all.csv'
-extra_columns=['test_auc','test_logloss']
+extra_columns=['test_auc']
 result_df= pd.DataFrame(columns=list(args.__dict__.keys())+extra_columns)
-result_df.loc[0]=list(args.__dict__.values())+[mean_auc_value,mean_logloss_value]
+result_df.loc[0]=list(args.__dict__.values())+[mean_auc_value]
 
 # Check if the file exists
 if not os.path.exists(csv_file_path):
