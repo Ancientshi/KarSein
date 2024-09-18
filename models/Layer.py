@@ -311,7 +311,6 @@ class KANLinear(torch.nn.Module):
     def reset_parameters(self):
         torch.nn.init.kaiming_uniform_(self.base_weight, a=math.sqrt(5) * self.scale_base)
         torch.nn.init.kaiming_uniform_(self.spline_weight, a=math.sqrt(5) * self.scale_base)
-        #not track gradients.
         with torch.no_grad():
             noise = (
                 (
@@ -417,31 +416,11 @@ class KANLinear(torch.nn.Module):
 
         original_shape = x.shape
         x = x.view(-1, self.in_features)
-
         base_output = F.linear(self.base_activation(x), self.base_weight)
-        
-        # print(x[0,0:5])
-        # aa=input('上面是x, aa')
-        # (batch, in_features, grid_size + spline_order)
         basis_activated_x = self.b_splines(x) 
-        # print(basis_activated_x[0,0:5,:])
-        # aa=input('上面是在基函数上的值, aa')
-        # print(self.B_spline_weight[0:5,:])
-        # aa=input('上面是可学习的激活函数的参数, aa')
         b_spline_activated_x = torch.einsum('bik,ik->bi', basis_activated_x, self.B_spline_weight)  
-        # print(b_spline_activated_x[0,0:5])
-        # aa=input('上面是激活后的值, aa')
-        # print(self.scaled_spline_weight[:,0:5])
-        # aa=input('上面是维度转换的参数, aa')
-        #打印b_spline_activated_x的维度，还有scaled_spline_weight的维度
-        #print(b_spline_activated_x.shape) #torch.Size([512, 97])
-        #print(self.scaled_spline_weight.shape)
         spline_output = F.linear(b_spline_activated_x, self.scaled_spline_weight)
-        # print(spline_output[0,0:5])
-        # aa=input('上面是spline部分的线性转换输出, aa')
         output = base_output + spline_output
-        # print(output[0,0:5])
-        # aa=input('上面是spline和base的输出, aa')
         return output
 
 
@@ -532,8 +511,6 @@ class KANLinear(torch.nn.Module):
 
         original_shape = x.shape
         x = x.view(-1, self.in_features)
-
-        # Base output activation
         base_activation_output = self.base_activation(x)  # (batch, in_features)
         # Expand dimensions for element-wise multiplication
         base_activation_output_expanded = base_activation_output.unsqueeze(-1)  # (batch, in_features, 1)
@@ -688,7 +665,6 @@ class KarSein_Layer(torch.nn.Module):
                 plt.close(fig)
         
         elif len(x.shape) == 3:
-            #对第1个维度循环，图片保存为f"{folder}/feature_{d_index}_emb{emb_index}.png"
             batch_size, emb_dim, d = x.shape
             for emb_index in range(emb_dim):
                 for d_index in range(d):
@@ -734,7 +710,6 @@ class KarSein_Layer(torch.nn.Module):
                     
         
     def get_posact(self,folder,x):
-        #pos_act 是(batch, emb_dim, in_features, out_features)，分量，用于可视化权重连接；activated_x是用于可视化激活函数
         self.pos_act=[] #batch,in,out
         for layer_index,layer in enumerate(self.layers):
             pos_act,activated_x = layer.get_posact(x)
@@ -758,7 +733,6 @@ class KarSein_Layer(torch.nn.Module):
                 # Apply the threshold condition
                 mean_abs = np.abs(mean)
                 
-                # 找出mean_abs中每一行中每个元素都小于threshold的行
                 threshold=0.01
                 index = np.where(np.all(mean_abs <= threshold, axis=1))[0]
                 prune_ratio = len(index) / mean.shape[0]
@@ -773,17 +747,14 @@ class KarSein_Layer(torch.nn.Module):
                 ax.set_title(f"Layer {layer_index}, prune ratio: {prune_ratio}", pad=20)
                 ax.set_xlabel("Output Features")
                 ax.set_ylabel("Input Features")
-                
                 plt.grid(False)
 
-                # Save in ./img/ folder
                 if not os.path.exists(folder):
                     os.makedirs(folder)
                 plt.savefig(f"{folder}/{module_name}_layer_{layer_index}.png")
                 plt.close(fig)  # Close the figure to avoid display in non-interactive environments
                 
         elif len(x.shape) == 3:
-            #对第1个维度循环，图片保存为f"{folder}/{module_name}_layer_{layer_index}_emb{emb_index}.png"
             for emb_index in range(x.shape[1]):
                 for layer_index, layer in enumerate(self.layers):
                     fig, ax = plt.subplots(figsize=(16, 20))
@@ -793,7 +764,6 @@ class KarSein_Layer(torch.nn.Module):
                     # Apply the threshold condition
                     mean_abs = np.abs(mean)
                     
-                    # 找出mean_abs中每一行中每个元素都小于threshold的行
                     threshold=0.01
                     index = np.where(np.all(mean_abs <= threshold, axis=1))[0]
                     prune_ratio = len(index) / mean.shape[0]
@@ -811,7 +781,6 @@ class KarSein_Layer(torch.nn.Module):
                     
                     plt.grid(False)
 
-                    # Save in ./img/ folder
                     if not os.path.exists(folder):
                         os.makedirs(folder)
                     plt.savefig(f"{folder}/{module_name}_layer_{layer_index}_emb{emb_index}.png")
@@ -823,21 +792,15 @@ class KarSein_Layer(torch.nn.Module):
         self.block_index = []
         if len(x.shape) == 2:
             for layer_index, layer in enumerate(self.layers):
-                # 计算每层的激活均值,  dim=0 是batch维度，dim=1是in_features维度, dim=2是out_features维度
                 mean = torch.mean(self.pos_act[layer_index], dim=0).cpu().detach().numpy()
                 mean_abs = np.abs(mean)
-                # 找出mean_abs中每一行中每个元素都小于threshold的行
                 index = np.where(np.all(mean_abs <= threshold, axis=1))[0]
 
                 with torch.no_grad():
-                    # 设置base_weight[:, index]为0
                     layer.base_weight[:, index] = 1e-10
-                    # 设置spline_weight[:, index]为0
                     layer.spline_weight[:, index] = 1e-10
                 
-                # 设置base_weight[:, index]的requires_grad为False，冻结参数
                 layer.base_weight[:, index].requires_grad = False
-                # 设置spline_weight[:, index, :]的requires_grad为False，冻结参数
                 layer.spline_weight[:, index].requires_grad = False
                 
                 prune_ratio = len(index) / mean.shape[0]
@@ -847,31 +810,19 @@ class KarSein_Layer(torch.nn.Module):
         elif len(x.shape) == 3:
             for layer_index, layer in enumerate(self.layers):
                 index_set=[]
-                #需要统计处对于每个emb_index的index, 存入到index_set中，然后取交集，结果存入到self.block_index中
                 for emb_index in range(x.shape[1]):
                     for layer_index, layer in enumerate(self.layers):
-                        # 计算每层的激活均值
                         mean = torch.mean(self.pos_act[layer_index][:,emb_index,:,:], dim=0).cpu().detach().numpy()
                         mean_abs = np.abs(mean)
-                        # 找出mean_abs中每一行中每个元素都小于threshold的行
                         index = np.where(np.all(mean_abs <= threshold, axis=1))[0]
-                        #转为list
                         index_list=index.tolist()
                         index_set.append(set(index_list))
 
-                #取交集
                 intersaction_index = list(set.intersection(*index_set))
-                #计算prune_ratio
                 prune_ratio = len(intersaction_index) / mean.shape[0]
                 print(f'layer {layer_index} prune ratio: {prune_ratio}')
                 self.block_index.append(intersaction_index)
 
-    
-            
-        
-            
-            
-        
         
     def regularization_loss(self, regularize_activation=1.0, regularize_entropy=1.0):
         return sum(

@@ -22,7 +22,7 @@ import argparse
 def parse_args():
     parser = argparse.ArgumentParser(description="Configure the model settings.")
     parser.add_argument('--seed', type=int, default=42, help='Random Seed')
-    parser.add_argument('--netname', type=str, default='WDL', help='Network Name')
+    parser.add_argument('--netname', type=str, default='KARSEIN', help='Network Name')
     parser.add_argument('--use_bit_wise', type=int, default=1, help='Use KarSein_bit')
     parser.add_argument('--use_vec_wise', type=int, default=1, help='Use KarSein_vec')
     parser.add_argument('--pairwise_multiplication', type=int, nargs='+', default=[0,1], help='Pairwise Multiplication')
@@ -35,7 +35,6 @@ def parse_args():
     parser.add_argument('--task', type=str, default='TopK', choices=['CTR'], help='Task Type (CTR)')
     parser.add_argument('--epochs', type=int, default=5, help='Number of Epochs')
     parser.add_argument('--batch_size', type=int, default=512, help='Batch Size for Training, 10*batch_size for Evaluation')
-    #reg 0.01
     parser.add_argument('--reg', type=float, default=0.01, help='Regularization Rate')
     parser.add_argument('--lr', type=float, default=0.001, help='Learning Rate')
     parser.add_argument('--weight_decay', type=float, default=1e-5, help='Weight Decay Rate')
@@ -90,7 +89,6 @@ def init_model(feature_dict,vocab_size_dict):
         
     model=model.cuda(device_index)
     
-    # Count and print the number of parameters in millions
     emb_param_count, no_emb_param_count = count_parameters(model)
     emb_param_count_millions = emb_param_count / 1e6
     no_emb_param_count_millions = no_emb_param_count / 1e6
@@ -158,9 +156,9 @@ def train(model=None):
 
 best_model = train()
 
-# Evaluate best model
 best_model.eval()
 auc_value_sum=0
+logloss_value_sum=0
 recall_eva_df=pd.DataFrame(columns=['user_id','movie_id','rating','prediction'],index=None)
 with torch.no_grad():
     if args.task=='CTR':
@@ -169,19 +167,22 @@ with torch.no_grad():
             labels = labels.cuda(device_index)
             outputs = best_model(inputs)
             auc_value=auc(labels.detach().cpu().numpy(),outputs.detach().cpu().numpy())
-
+            logloss_value=criterion(outputs.squeeze(), labels).item()
+            auc_value_sum+=auc_value
+            logloss_value_sum+=logloss_value
       
     mean_auc_value = auc_value_sum / len(test_loader)
+    mean_logloss_value = logloss_value_sum / len(test_loader)
 
     AUC_value_str=f'{mean_auc_value:.4f}'
-    print(f"Best Model, AUC: {AUC_value_str}")
+    LogLoss_value_str=f'{mean_logloss_value:.4f}'
+    print(f"Best Model, AUC: {AUC_value_str}, LogLoss: {LogLoss_value_str}")
     
 csv_file_path='results/all.csv'
-extra_columns=['test_auc']
+extra_columns=['test_auc','test_logloss']
 result_df= pd.DataFrame(columns=list(args.__dict__.keys())+extra_columns)
-result_df.loc[0]=list(args.__dict__.values())+[mean_auc_value]
+result_df.loc[0]=list(args.__dict__.values())+[mean_auc_value,mean_logloss_value]
 
-# Check if the file exists
 if not os.path.exists(csv_file_path):
     result_df.to_csv(csv_file_path, mode='a', header=True, index=False)
 else:
