@@ -8,3 +8,5 @@ KarSein for CTR predict
 See `all.csv` for more performance under different settings.
 
 
+## Note
+We will latter provide a new version based on [RecBole](https://github.com/RUCAIBox/RecBole) framework.
